@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  api:
+    image: djangoandnginx:latest
+    volumes:
+      - .:/app
+      - ../django-local-efs:/var/www/django-local-efs
+    ports:
+      - target: 7000
+        published: 7000
+        protocol: tcp
+        mode: host
+    networks:
+      - django
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == irwinrex-equipo
+      replicas: 1
+      update_config:
+        failure_action: rollback
+        order: start-first
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:7000/home']
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 1s
+  nginx:
+    image: nginx:alpine
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+    volumes:
+        # - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      # - ./main.conf:/etc/nginx/nginx.conf
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+      # - ../django-local-efs:/var/www/django-local-efs
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == irwinrex-equipo
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      - api
+    networks:
+      - django
+
+networks:
+  django:
+    driver: overlay  # Use overlay network for Swarm deployment
